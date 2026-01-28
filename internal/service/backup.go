@@ -1,4 +1,3 @@
-// Package service provides business logic for the Aeron Toolbox.
 package service
 
 import (
@@ -89,11 +88,7 @@ func newBackupService(repo *database.Repository, cfg *config.Config) (*BackupSer
 		svc.backupRoot = root
 
 		// Initialize S3 backend if configured
-		s3svc, err := newS3Service(&cfg.Backup.S3)
-		if err != nil {
-			return nil, err
-		}
-		svc.s3 = s3svc
+		svc.s3 = newS3Service(&cfg.Backup.S3)
 	}
 
 	return svc, nil
@@ -104,7 +99,7 @@ func (s *BackupService) Close() {
 	s.runner.Close()
 }
 
-// --- Types ---
+// Backup types.
 
 // BackupRequest represents the request body for backup operations.
 type BackupRequest struct {
@@ -126,7 +121,7 @@ type BackupListResponse struct {
 	TotalCount int          `json:"total_count"`
 }
 
-// --- Helpers ---
+// Helper functions.
 
 var safeBackupFilenamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\-.]+$`)
 
@@ -193,7 +188,7 @@ func (s *BackupService) compressionLevel(requested int) (int, error) {
 
 // validateBackupFile checks backup file integrity using pg_restore --list.
 func (s *BackupService) validateBackupFile(ctx context.Context, filePath string) error {
-	cmd := exec.CommandContext(ctx, s.pgRestorePath, "--list", filePath)
+	cmd := exec.CommandContext(ctx, s.pgRestorePath, "--list", filePath) //nolint:gosec // pg_restore path is validated at startup
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		errMsg := strings.TrimSpace(string(output))
@@ -253,7 +248,7 @@ func (s *BackupService) executePgDump(ctx context.Context, pgDumpPath, filename,
 	return fileInfo, duration, nil
 }
 
-// --- Public methods ---
+// Public methods.
 
 // Start initiates a database backup in the background. Returns an error if validation fails or a backup is already running.
 func (s *BackupService) Start(req BackupRequest) error {
@@ -558,7 +553,7 @@ func (s *BackupService) Validate(filename string) (*ValidationResult, error) {
 	return result, nil
 }
 
-// --- Background cleanup ---
+// Background cleanup.
 
 // cleanupOldBackups removes files exceeding retention days or max backup count.
 func (s *BackupService) cleanupOldBackups() {
